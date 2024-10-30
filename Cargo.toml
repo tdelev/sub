@@ -1,0 +1,8 @@
+[package]
+name = "sub"
+version = "0.1.0"
+edition = "2021"
+description = "A command-lin tool for string substitutions"
+
+[dependencies]
+clap = {version = "4.5.20", features = ["cargo"]}
