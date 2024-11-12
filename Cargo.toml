@@ -9,3 +9,4 @@ assert_cmd = "2.0.16"
 clap = { version = "4.5.20", features = ["cargo", "derive"] }
 regex = "1.11.1"
 atty = "0.2"
+tempfile = "3.14.0"
