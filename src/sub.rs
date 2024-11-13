@@ -1,9 +1,11 @@
+use colored::Colorize;
 use core::fmt;
 use regex::RegexBuilder;
 use std::borrow::Cow;
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Write};
+use std::str::FromStr;
 
 use crate::Cli;
 
@@ -15,6 +17,7 @@ pub struct Sub<'a> {
     pub ignore_case: bool,
     pub match_pattern: Option<&'a str>,
     pub inputs: Vec<Input<'a>>,
+    pub show_diff: bool,
 }
 
 #[derive(Debug)]
@@ -77,6 +80,7 @@ impl<'a> Sub<'a> {
             ignore_case: cli.ignore_case,
             match_pattern: cli.line_match.as_deref(),
             inputs,
+            show_diff: cli.show_diff,
         }
     }
 
@@ -166,7 +170,11 @@ impl<'a> Sub<'a> {
             } else {
                 Cow::from(&line_buffer)
             };
-            write!(writer, "{}", new_line).map_err(|_| SubError::FailedToWrite)?;
+            if self.show_diff && line_buffer != new_line {
+                print_colored_diff(&line_buffer, &new_line, writer)?;
+            } else {
+                write!(writer, "{}", new_line).map_err(|_| SubError::FailedToWrite)?;
+            }
         }
         Ok(())
     }
@@ -181,4 +189,33 @@ fn create_reader(input: &Input<'_>, stdin: &io::Stdin) -> Result<Box<dyn BufRead
         }
     };
     Ok(reader)
+}
+
+fn print_colored_diff(original: &str, replacment: &str, writer: &mut dyn Write) -> Result<()> {
+    let line_diff = diff::chars(original, replacment);
+    write!(writer, "{}", String::from_str("-").unwrap().red().bold())
+        .map_err(|_| SubError::FailedToWrite)?;
+    for diff in &line_diff {
+        match diff {
+            diff::Result::Left(l) => write!(writer, "{}", l.to_string().red().bold())
+                .map_err(|_| SubError::FailedToWrite)?,
+            diff::Result::Both(l, _) => {
+                write!(writer, "{}", l).map_err(|_| SubError::FailedToWrite)?
+            }
+            diff::Result::Right(_) => {}
+        }
+    }
+    write!(writer, "{}", String::from_str("+").unwrap().green().bold())
+        .map_err(|_| SubError::FailedToWrite)?;
+    for diff in &line_diff {
+        match diff {
+            diff::Result::Left(_) => {}
+            diff::Result::Both(l, _) => {
+                write!(writer, "{}", l).map_err(|_| SubError::FailedToWrite)?
+            }
+            diff::Result::Right(r) => write!(writer, "{}", r.to_string().green().bold())
+                .map_err(|_| SubError::FailedToWrite)?,
+        }
+    }
+    Ok(())
 }

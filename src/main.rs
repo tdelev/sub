@@ -26,6 +26,8 @@ struct Cli {
         help = "Only substitute on lines that match the pattern"
     )]
     line_match: Option<String>,
+    #[arg(short, long, help = "Show diff when printing on stdout")]
+    show_diff: bool,
 }
 
 fn main() {
